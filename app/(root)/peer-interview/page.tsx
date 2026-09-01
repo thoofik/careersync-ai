@@ -1,0 +1,184 @@
+import React from 'react';
+import {Button} from "@/components/ui/button";
+import Link from "next/link";
+import Image from "next/image";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {getCurrentUser} from "@/lib/actions/auth.action";
+import { getPeerInterviews, getUserPeerInterviews } from '@/lib/actions/peer-interview.action';
+import PeerInterviewCard from '@/components/PeerInterviewCard';
+import SearchFilter from '@/components/SearchFilter';
+import { Suspense } from 'react';
+
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+const PeerInterviewPage = async ({ searchParams }: Props) => {
+    const query = await searchParams;
+    const user = await getCurrentUser();
+    
+    if (!user) {
+        return null; // This will be handled by the layout's authentication check
+    }
+    
+    // Get both user's interviews and available interviews
+    const [userPeerInterviews, availablePeerInterviews] = await Promise.all([
+        getUserPeerInterviews(user.id),
+        getPeerInterviews(user.id) // Pass user ID to exclude their own interviews
+    ]);
+    
+    // Apply search and filtering
+    const searchTerm = typeof query.search === 'string' 
+        ? query.search.toLowerCase() 
+        : '';
+    const filterValue = typeof query.filter === 'string' 
+        ? query.filter 
+        : '';
+    
+    // Filter user's interviews
+    const filteredUserInterviews = userPeerInterviews?.filter(interview => {
+        // Search term matching
+        const matchesSearch = !searchTerm || 
+            interview.role?.toLowerCase().includes(searchTerm) || 
+            interview.techstack?.some(tech => tech.toLowerCase().includes(searchTerm));
+        
+        // Filter matching
+        const matchesFilter = !filterValue || 
+            interview.status === filterValue || 
+            interview.level === filterValue;
+        
+        return matchesSearch && matchesFilter;
+    });
+    
+    // Filter available interviews
+    const filteredAvailableInterviews = availablePeerInterviews?.filter(interview => {
+        // Search term matching
+        const matchesSearch = !searchTerm || 
+            interview.role?.toLowerCase().includes(searchTerm) || 
+            interview.techstack?.some(tech => tech.toLowerCase().includes(searchTerm));
+        
+        // Filter matching
+        const matchesFilter = !filterValue || 
+            interview.status === filterValue || 
+            interview.level === filterValue;
+        
+        return matchesSearch && matchesFilter;
+    });
+    
+    const hasUserInterviews = filteredUserInterviews && filteredUserInterviews.length > 0;
+    const hasAvailableInterviews = filteredAvailableInterviews && filteredAvailableInterviews.length > 0;
+
+    const filterOptions = [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Active', value: 'active' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Junior', value: 'junior' },
+        { label: 'Mid-level', value: 'mid-level' },
+        { label: 'Senior', value: 'senior' }
+    ];
+
+    return (
+        <>
+            <section className="rounded-2xl border bg-card text-card-foreground dark:bg-card dark:border-border">
+                <div className="grid md:grid-cols-2 gap-8 p-8 md:p-12 items-center">
+                    <div className="space-y-4">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-secondary text-secondary-foreground px-3 py-1 text-xs ring-1 ring-border mb-2">Peer-to-Peer</div>
+                        <h2 className="text-3xl font-bold">Practice Interviews With Fellow Developers</h2>
+                        <p className="text-muted-foreground">Create an interview to practice with another developer or join as an interviewer.</p>
+                        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+                            <Button asChild>
+                                <Link href="/peer-interview/create" className="flex-1">Create Interview</Link>
+                            </Button>
+                            <Button asChild variant="outline">
+                                <Link href="/peer-interview/dashboard" className="flex-1">View Dashboard</Link>
+                            </Button>
+                        </div>
+                    </div>
+                    <div>
+                        <Card className="shadow-sm dark:bg-input/20 dark:border-input">
+                            <CardHeader>
+                                <CardTitle className="text-xl text-foreground dark:text-card-foreground">Why peer interviews?</CardTitle>
+                                <CardDescription className="text-muted-foreground dark:text-card-foreground/70">Practice with humans to simulate real-world interviews.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="grid gap-3 text-sm text-muted-foreground dark:text-card-foreground/80">
+                                    <li>• Real interaction and communication practice</li>
+                                    <li>• Get feedback from other developers</li>
+                                    <li>• Build confidence through collaboration</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </section>
+
+            <section className="flex flex-col gap-6 mt-8">
+                <h2>Your Peer Interviews</h2>
+                
+                <Suspense fallback={<div className="animate-pulse h-12 w-full bg-gray-200 dark:bg-gray-700 rounded-md"></div>}>
+                    <SearchFilter 
+                        filterOptions={filterOptions} 
+                        baseUrl="/peer-interview" 
+                        placeholder="Search by role or technology..."
+                    />
+                </Suspense>
+
+                <div className="interviews-section">
+                    {hasUserInterviews ? (
+                        filteredUserInterviews?.map((interview) => (
+                            <PeerInterviewCard 
+                                key={interview.id}
+                                id={interview.id}
+                                role={interview.role}
+                                level={interview.level || 'junior'}
+                                techstack={interview.techstack}
+                                createdAt={interview.createdAt}
+                                status={interview.status || 'pending'}
+                                isCreator={true}
+                            />
+                        ))
+                    ) : (
+                        <div className="p-8 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                            {searchTerm || filterValue ? (
+                                <p>No matching interviews found. Try adjusting your search or filters.</p>
+                            ) : (
+                                <p>You haven't created any peer interviews yet.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            <section className="flex flex-col gap-6 mt-8">
+                <h2>Available Peer Interviews</h2>
+
+                <div className="interviews-section">
+                    {hasAvailableInterviews ? (
+                        filteredAvailableInterviews?.map((interview) => (
+                            <PeerInterviewCard 
+                                key={interview.id}
+                                id={interview.id}
+                                role={interview.role}
+                                level={interview.level || 'junior'}
+                                techstack={interview.techstack}
+                                createdAt={interview.createdAt}
+                                status={interview.status || 'pending'}
+                                isCreator={false}
+                            />
+                        ))
+                    ) : (
+                        <div className="p-8 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                            {searchTerm || filterValue ? (
+                                <p>No matching interviews available. Try adjusting your search or filters.</p>
+                            ) : (
+                                <p>There are no peer interviews available at the moment. Create one to get started!</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </section>
+        </>
+    );
+};
+
+export default PeerInterviewPage; 
