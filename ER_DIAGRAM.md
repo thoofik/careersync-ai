@@ -1,4 +1,4 @@
-# Entity Relationship Diagram - Interview Prep Project
+# Entity Relationship Diagram - CareerSync-AI
 
 ## Database Schema Overview
 
@@ -68,15 +68,35 @@ class CategoryScore {
   + comment : string
 }
 
+class ResumeScan {
+  + id : string <<PK>>
+  + companyName : string
+  + jobTitle : string
+  + imagePath : string
+  + resumePath : string
+  + feedback : ResumeScanFeedback
+}
+
+class ResumeScanFeedback {
+  + overallScore : number
+  + ATS : { score, tips[] }
+  + toneAndStyle : { score, tips[] }
+  + content : { score, tips[] }
+  + structure : { score, tips[] }
+  + skills : { score, tips[] }
+}
+
 User ||--o{ Interview : creates
 User ||--o{ PeerInterview : creates_as_interviewee
 User ||--o{ PeerInterview : joins_as_interviewer
 User ||--o{ Feedback : receives
 User ||--o{ PeerInterviewFeedback : receives_as_interviewee
 User ||--o{ PeerInterviewFeedback : gives_as_interviewer
+User ||--o{ ResumeScan : uploads_for_ATS_scan
 
 Interview ||--|| Feedback : has
 PeerInterview ||--|| PeerInterviewFeedback : has
+ResumeScan ||--|| ResumeScanFeedback : has
 
 Feedback ||--o{ CategoryScore : contains
 
@@ -105,6 +125,12 @@ note right of PeerInterviewFeedback
   **Type:** Peer-provided feedback
 end note
 
+note right of ResumeScan
+  **Store:** Puter KV key resume:{id}
+  **Files:** Puter FS (PDF + preview image)
+  **Not in Firestore**
+end note
+
 @enduml
 ```
 
@@ -121,31 +147,31 @@ end note
          │
          │ 1
          │
-         ├─────────────────────┐
-         │                     │
-         │ *                   │ *
-         ▼                     ▼
-┌──────────────────┐  ┌──────────────────────┐
-│   INTERVIEW      │  │  PEER_INTERVIEW      │
-├──────────────────┤  ├──────────────────────┤
-│ + id : string {PK}│  │ + id : string {PK}   │
-│ + userId : string│  │ + userId : string    │
-│   {FK}           │  │   {FK}               │
-│ + role : string  │  │ + interviewerId :    │
-│ + level : string │  │   string {FK, null}  │
-│ + type : string  │  │ + role : string       │
-│ + techstack[]    │  │ + level : string      │
-│ + questions[]    │  │ + techstack[]         │
-│ + finalized :    │  │ + status : enum       │
-│   boolean        │  │ + roomId : string     │
-│ + createdAt :    │  │ + createdAt : string │
-│   string         │  │ + updatedAt : string │
-└──────────────────┘  └──────────────────────┘
-         │                     │
-         │ 1                   │ 1
-         │                     │
-         ▼                     ▼
-┌──────────────────┐  ┌──────────────────────────┐
+         ├─────────────────────┬─────────────────────┐
+         │                     │                     │
+         │ *                   │ *                   │ *
+         ▼                     ▼                     ▼
+┌──────────────────┐  ┌──────────────────────┐  ┌──────────────────┐
+│   INTERVIEW      │  │  PEER_INTERVIEW      │  │  RESUME_SCAN     │
+├──────────────────┤  ├──────────────────────┤  ├──────────────────┤
+│ + id : string {PK}│  │ + id : string {PK}   │  │ + id : string {PK}│
+│ + userId : string│  │ + userId : string    │  │ + companyName    │
+│   {FK}           │  │   {FK}               │  │ + jobTitle       │
+│ + role : string  │  │ + interviewerId :    │  │ + imagePath      │
+│ + level : string │  │   string {FK, null}  │  │ + resumePath     │
+│ + type : string  │  │ + role : string       │  │ + feedback       │
+│ + techstack[]    │  │ + level : string      │  └──────────────────┘
+│ + questions[]    │  │ + techstack[]         │           │ 1
+│ + finalized :    │  │ + status : enum       │           ▼
+│   boolean        │  │ + roomId : string     │  ┌──────────────────┐
+│ + createdAt :    │  │ + createdAt : string │  │ RESUME_SCAN_     │
+│   string         │  │ + updatedAt : string │  │ FEEDBACK         │
+└──────────────────┘  └──────────────────────┘  ├──────────────────┤
+         │                     │                 │ overallScore     │
+         │ 1                   │ 1               │ ATS, style,      │
+         │                     │                 │ content,         │
+         ▼                     ▼                 │ structure, skills│
+┌──────────────────┐  ┌──────────────────────────┐ └──────────────────┘
 │    FEEDBACK      │  │ PEER_INTERVIEW_FEEDBACK  │
 ├──────────────────┤  ├──────────────────────────┤
 │ + id : string {PK}│  │ + id : string {PK}       │
@@ -183,9 +209,11 @@ erDiagram
     USER ||--o{ FEEDBACK : receives
     USER ||--o{ PEER_FEEDBACK : receives_as_interviewee
     USER ||--o{ PEER_FEEDBACK : gives_as_interviewer
+    USER ||--o{ RESUME_SCAN : uploads_for_ATS_scan
     
     INTERVIEW ||--|| FEEDBACK : has
     PEER_INTERVIEW ||--|| PEER_FEEDBACK : has
+    RESUME_SCAN ||--|| RESUME_SCAN_FEEDBACK : has
     
     USER {
         string id PK
@@ -239,6 +267,24 @@ erDiagram
         string feedback
         string createdAt
     }
+
+    RESUME_SCAN {
+        string id PK
+        string companyName
+        string jobTitle
+        string imagePath
+        string resumePath
+        object feedback
+    }
+
+    RESUME_SCAN_FEEDBACK {
+        number overallScore
+        object ATS
+        object toneAndStyle
+        object content
+        object structure
+        object skills
+    }
 ```
 
 ### ASCII ER Diagram
@@ -257,29 +303,30 @@ erDiagram
 └──────────────┘       │
                        │
                        │
-        ┌──────────────┼──────────────┐
-        │              │              │
-        │              │              │
-        ▼              ▼              ▼
-┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│  INTERVIEW   │ │ PEER_INTERVIEW   │ │     USER         │
-│  (AI Mode)   │ │  (Peer Mode)     │ │   (Profile)      │
-├──────────────┤ ├──────────────────┤ ├──────────────────┤
-│ id (PK)      │ │ id (PK)          │ │ (same as User)   │
-│ userId (FK)  │◄─┤ userId (FK)     │◄─┤                  │
-│ role         │ │ interviewerId    │ │                  │
-│ level        │ │   (FK, nullable) │ │                  │
-│ type         │ │ role             │ │                  │
-│ techstack[]  │ │ level            │ │                  │
-│ questions[]  │ │ techstack[]      │ │                  │
-│ finalized    │ │ status           │ │                  │
-│ createdAt    │ │ roomId           │ │                  │
-└──────────────┘ │ createdAt        │ │                  │
-        │        │ updatedAt        │ │                  │
-        │        └──────────────────┘ └──────────────────┘
-        │                  │
-        │                  │
-        ▼                  ▼
+        ┌──────────────┼──────────────┬──────────────────┐
+        │              │              │                  │
+        ▼              ▼              ▼                  ▼
+┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│  INTERVIEW   │ │ PEER_INTERVIEW   │ │     USER         │ │  RESUME_SCAN     │
+│  (AI Mode)   │ │  (Peer Mode)     │ │   (Profile)      │ │  (Puter KV/FS)   │
+├──────────────┤ ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+│ id (PK)      │ │ id (PK)          │ │ (same as User)   │ │ id (PK)          │
+│ userId (FK)  │◄─┤ userId (FK)     │◄─┤                  │ │ companyName      │
+│ role         │ │ interviewerId    │ │                  │ │ jobTitle         │
+│ level        │ │   (FK, nullable) │ │                  │ │ imagePath        │
+│ type         │ │ role             │ │                  │ │ resumePath       │
+│ techstack[]  │ │ level            │ │                  │ │ feedback         │
+│ questions[]  │ │ techstack[]      │ │                  │ └──────────────────┘
+│ finalized    │ │ status           │ │                  │          │
+│ createdAt    │ │ roomId           │ │                  │          ▼
+└──────────────┘ │ createdAt        │ │                  │ ┌──────────────────┐
+        │        │ updatedAt        │ │                  │ │ RESUME_SCAN_     │
+        │        └──────────────────┘ └──────────────────┘ │ FEEDBACK         │
+        │                  │                               ├──────────────────┤
+        │                  │                               │ overallScore     │
+        ▼                  ▼                               │ ATS + categories │
+                                                           └──────────────────┘
+┌──────────────┐ ┌──────────────────────┐
 ┌──────────────┐ ┌──────────────────────┐
 │   FEEDBACK   │ │ PEER_INTERVIEW_      │
 │  (AI Mode)   │ │    FEEDBACK          │
@@ -337,6 +384,7 @@ erDiagram
   - One-to-Many with `PEER_INTERVIEW` (creates peer interviews)
   - One-to-Many with `FEEDBACK` (receives feedback)
   - One-to-Many with `PEER_INTERVIEW_FEEDBACK` (as interviewer or interviewee)
+  - One-to-Many with `RESUME_SCAN` (uploads resumes for ATS scoring; stored in Puter, not Firestore)
 
 ### 2. **INTERVIEW** (interviews collection) - AI Interview Mode
 - **Primary Key**: `id` (Firestore document ID)
@@ -404,6 +452,25 @@ erDiagram
   - Many-to-One with `USER` (interviewerId references User as interviewer)
   - Many-to-One with `USER` (intervieweeId references User as interviewee)
 
+### 6. **RESUME_SCAN** (Puter KV `resume:{id}` + Puter FS) - Resume / ATS scan
+- **Primary Key**: `id` (UUID; KV key is `resume:{id}`)
+- **Storage**: Puter key-value + file system (not a Firestore collection)
+- **Attributes**:
+  - `id`: string
+  - `companyName`: string (optional, target company)
+  - `jobTitle`: string (optional, target role)
+  - `imagePath`: string (preview image path in Puter FS)
+  - `resumePath`: string (uploaded PDF path in Puter FS)
+  - `feedback`: `ResumeScanFeedback` or empty string while analysis is running
+- **Nested feedback**:
+  - `overallScore`: number
+  - `ATS`: `{ score, tips[] }` (good / improve)
+  - `toneAndStyle`, `content`, `structure`, `skills`: `{ score, tips[] }`
+- **Relationships**:
+  - Many-to-One with the signed-in Puter user (logical owner; no Firebase FK)
+  - One-to-One with nested `RESUME_SCAN_FEEDBACK`
+- **Related but not persisted as its own entity**: mock interviews may parse a PDF via `POST /api/resume/parse` only to tailor questions. That parse result is not stored as `RESUME_SCAN`.
+
 ## Relationship Summary
 
 | Relationship | Type | Description |
@@ -416,6 +483,8 @@ erDiagram
 | User → PeerFeedback (as interviewer) | One-to-Many | A user can give multiple peer feedbacks |
 | User → PeerFeedback (as interviewee) | One-to-Many | A user can receive multiple peer feedbacks |
 | User → PeerInterview (as interviewer) | One-to-Many | A user can join multiple peer interviews as interviewer |
+| User → ResumeScan | One-to-Many | A user can upload and score multiple resumes (Puter KV) |
+| ResumeScan → ResumeScanFeedback | One-to-One | Each scan has nested ATS and category scores |
 
 ## Collection Names in Firestore
 
@@ -425,6 +494,11 @@ erDiagram
 4. **peer-interviews** - Peer interview sessions
 5. **peer-interview-feedback** - Peer interview feedback
 
+## Resume scan store (not Firestore)
+
+1. **Puter KV** `resume:{id}` - scan metadata + nested ATS feedback (`SkillScanResume`)
+2. **Puter FS** - PDF (`resumePath`) and preview image (`imagePath`)
+
 ## Notes
 
 - Firebase Firestore is a NoSQL database, so relationships are maintained through foreign key references (document IDs)
@@ -432,6 +506,8 @@ erDiagram
 - When a peer interview is completed, the status changes to 'completed' and feedback is created
 - Both AI and Peer interview modes have separate feedback systems
 - The `roomId` in `PEER_INTERVIEW` is used for video call integration (e.g., Zego)
+- Resume scanning (`/skillscan`) persists to Puter KV/FS after a separate Puter sign-in. It is not written to Firestore.
+- Optional resume upload on AI mocks (`/api/resume/parse`) is ephemeral and only used to personalize questions.
 
 ---
 
@@ -483,7 +559,47 @@ Frontend --> User: Display feedback
 @enduml
 ```
 
-### 2. Peer Interview Flow - Session Creation and Interview
+### 2. Resume Scan Flow - ATS analysis
+
+```plantuml
+@startuml Resume Scan Flow
+
+actor User
+participant Frontend
+participant PuterAuth
+participant PuterFS
+participant PuterAI
+participant PuterKV
+
+== Puter sign-in ==
+User -> Frontend: Open /skillscan
+Frontend -> PuterAuth: Check session
+alt not signed in
+  Frontend -> User: Redirect /skillscan/auth
+  User -> PuterAuth: Sign in
+end
+
+== Upload and analyze ==
+User -> Frontend: Upload PDF on /skillscan/upload
+Frontend -> PuterFS: Write PDF
+PuterFS --> Frontend: resumePath
+Frontend -> Frontend: Extract text / preview image
+Frontend -> PuterAI: Score resume for ATS and role
+PuterAI --> Frontend: Structured feedback
+Frontend -> PuterKV: SET resume:{id}\n(JSON SkillScanResume)
+PuterKV --> Frontend: OK
+Frontend --> User: Open /skillscan/resume/{id}
+
+== List saved scans ==
+User -> Frontend: Open /skillscan
+Frontend -> PuterKV: LIST resume:*
+PuterKV --> Frontend: Records
+Frontend --> User: Resume cards with scores
+
+@enduml
+```
+
+### 3. Peer Interview Flow - Session Creation and Interview
 
 ```plantuml
 @startuml Peer Interview Flow
