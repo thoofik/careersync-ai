@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, FileSearch, ClipboardList, Briefcase, FolderOpen } from "lucide-react";
+import { Bot, FileSearch, ClipboardList, Briefcase, FolderOpen, Building2, GraduationCap } from "lucide-react";
 
 const products = [
   {
@@ -44,6 +44,22 @@ const products = [
     icon: FolderOpen,
     cta: "Open portfolio",
   },
+  {
+    href: "/industry/sign-in",
+    title: "Industry",
+    description:
+      "Separate industry login. Post a listing, match students, then shortlist, recruit, or mentor.",
+    icon: Building2,
+    cta: "Industry sign in",
+  },
+  {
+    href: "/college/sign-in",
+    title: "College",
+    description:
+      "Separate college login. Monitor skills, internships, placements, and industry demand.",
+    icon: GraduationCap,
+    cta: "College sign in",
+  },
 ];
 
 export default function ProductHub() {
@@ -51,11 +67,11 @@ export default function ProductHub() {
     <section className="relative z-10 mx-auto max-w-5xl px-4 py-16">
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-semibold tracking-tight">
-          Student portal. One login.
+          Three portals. Separate logins.
         </h2>
         <p className="mt-2 text-muted-foreground">
-          Assess, learn, apply, interview, then share a portfolio. Industry and
-          college come later.
+          Students practice and apply. Industry posts and hires. College monitors
+          skills, internships, placements, and demand.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

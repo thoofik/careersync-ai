@@ -75,3 +75,25 @@ export const INTERNSHIP_JOBS: InternshipJob[] = [
 export function getInternship(id: string) {
   return INTERNSHIP_JOBS.find((job) => job.id === id);
 }
+
+export function internshipFromIndustry(post: {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  stipend: string;
+  mode: InternshipJob["mode"];
+  requiredSkills: Record<string, number>;
+  summary: string;
+}): InternshipJob {
+  return {
+    id: post.id,
+    title: post.title,
+    company: post.company,
+    location: post.location,
+    stipend: post.stipend || "Not listed",
+    mode: post.mode,
+    tags: post.requiredSkills,
+    summary: post.summary,
+  };
+}

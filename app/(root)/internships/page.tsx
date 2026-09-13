@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import StudentPath from "@/components/student/StudentPath";
-import { INTERNSHIP_JOBS } from "@/lib/internships/catalog";
+import {
+  INTERNSHIP_JOBS,
+  internshipFromIndustry,
+} from "@/lib/internships/catalog";
+import { loadPostings } from "@/lib/industry/postings";
 import {
   NEXT_STATUS,
   loadApplications,
@@ -14,25 +18,31 @@ import {
   type InternshipApplication,
 } from "@/lib/internships/applications";
 import { cosine, loadSkillProfile } from "@/lib/assessment/profile";
+import { syncStudentWorkRemote } from "@/lib/actions/student.action";
 
 export default function InternshipsPage() {
   const [apps, setApps] = useState<InternshipApplication[]>([]);
   const [sections, setSections] = useState<Record<string, number>>({});
+  const [jobs, setJobs] = useState(INTERNSHIP_JOBS);
 
   useEffect(() => {
     setApps(loadApplications());
     setSections(loadSkillProfile()?.sections || {});
+    const posted = loadPostings().map(internshipFromIndustry);
+    setJobs([...posted, ...INTERNSHIP_JOBS]);
   }, []);
 
   const ranked = useMemo(() => {
-    return INTERNSHIP_JOBS.map((job) => ({
+    return jobs.map((job) => ({
       job,
       match: Object.keys(sections).length ? cosine(sections, job.tags) : 0,
     })).sort((a, b) => b.match - a.match);
-  }, [sections]);
+  }, [sections, jobs]);
 
   const setStatus = (jobId: string, status: ApplicationStatus) => {
-    setApps(upsertApplication(jobId, status, apps));
+    const next = upsertApplication(jobId, status, apps);
+    setApps(next);
+    void syncStudentWorkRemote({ applications: next });
   };
 
   return (

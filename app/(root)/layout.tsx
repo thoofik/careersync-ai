@@ -1,15 +1,15 @@
 import {ReactNode} from 'react'
 import { redirect } from 'next/navigation';
-import { isAuthenticated, getCurrentUser } from '@/lib/actions/auth.action';
+import { getCurrentUser } from '@/lib/actions/auth.action';
 import AppShell from '@/components/layout/AppShell';
 
 const Rootlayout = async ({children}:{children: React.ReactNode}) => {
-  const isUserAuthenticated = await isAuthenticated();
-  console.log("Root layout - user authenticated:", isUserAuthenticated);
-  
-  if(!isUserAuthenticated) redirect('/sign-in');
-  
   const user = await getCurrentUser();
+  console.log("Root layout - user authenticated:", !!user);
+  
+  if(!user) redirect('/sign-in');
+  if(user.portal === "industry") redirect("/industry");
+  if(user.portal === "college") redirect("/college");
   
   return (
     <AppShell>

@@ -9,6 +9,7 @@ const LOCAL_DEV_USER = {
     id: "local-dev",
     name: "Local User",
     email: "local@dev",
+    portal: "student" as UserPortal,
 } as User;
 
 const firebaseReady = () => Boolean(auth && db);
@@ -34,7 +35,9 @@ export async function signUp(params: SignUpParams) {
         }
 
         await db.collection('users').doc(uid).set({
-            name, email
+            name,
+            email,
+            portal: params.portal || "student",
         })
 
         return {
@@ -59,7 +62,7 @@ export async function signUp(params: SignUpParams) {
 }
 
 export async function signIn(params: SignInParams) {
-    const { email, idToken } = params;
+    const { email, idToken, portal } = params;
 
     if (!firebaseReady()) {
         return {
@@ -78,7 +81,23 @@ export async function signIn(params: SignInParams) {
             }
         }
 
+        const profile = await db.collection("users").doc(userRecord.uid).get();
+        const accountPortal = (profile.data()?.portal as UserPortal | undefined) || "student";
+        const wanted = portal || "student";
+        if (accountPortal !== wanted) {
+            return {
+                success: false,
+                message:
+                    accountPortal === "industry"
+                        ? "This is an industry account. Sign in on the Industry page."
+                        : accountPortal === "college"
+                          ? "This is a college account. Sign in on the College page."
+                          : "This is a student account. Sign in on the student page.",
+            };
+        }
+
         await setSessionCookie(idToken);
+        return { success: true };
     } catch (e) {
         console.log(e);
 
@@ -107,6 +126,18 @@ export async function setSessionCookie(idToken: string) {
         path: '/',
         sameSite: 'lax'
     })
+}
+
+export async function clearSessionCookie() {
+    const cookieStore = await cookies();
+    cookieStore.set("session", "", {
+        maxAge: 0,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        sameSite: "lax",
+    });
+    cookieStore.delete("session");
 }
 
 export async function resetPassword(email: string) {
@@ -173,9 +204,11 @@ export async function getCurrentUser(): Promise<User | null> {
 
         if(!userRecord.exists) return null;
 
+        const data = userRecord.data() as Omit<User, "id">;
         return {
-            ...userRecord.data(),
+            ...data,
             id: userRecord.id,
+            portal: data.portal || "student",
         } as User;
     } catch (e) {
         console.log(e)
@@ -188,4 +221,9 @@ export async function isAuthenticated() {
     const user = await getCurrentUser();
 
     return !!user;
+}
+
+export async function isIndustryUser() {
+    const user = await getCurrentUser();
+    return user?.portal === "industry";
 }

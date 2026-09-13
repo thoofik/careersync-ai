@@ -29,8 +29,28 @@ const authFormSchema = (type: FormType) => {
   });
 };
 
-const AuthForm = ({ type }: { type: FormType }) => {
+const AuthForm = ({
+  type,
+  portal = "student",
+}: {
+  type: FormType;
+  portal?: UserPortal;
+}) => {
   const router = useRouter();
+  const home =
+    portal === "industry" ? "/industry" : portal === "college" ? "/college" : "/";
+  const signInHref =
+    portal === "industry"
+      ? "/industry/sign-in"
+      : portal === "college"
+        ? "/college/sign-in"
+        : "/sign-in";
+  const signUpHref =
+    portal === "industry"
+      ? "/industry/sign-up"
+      : portal === "college"
+        ? "/college/sign-up"
+        : "/sign-up";
 
   const formSchema = authFormSchema(type);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -58,6 +78,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
           name: name!,
           email,
           password,
+          portal,
         });
 
         if (!result.success) {
@@ -66,7 +87,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         }
 
         toast.success("Account created successfully. Please sign in.");
-        router.push("/sign-in");
+        router.push(signInHref);
       } else {
         const { email, password } = data;
 
@@ -82,13 +103,19 @@ const AuthForm = ({ type }: { type: FormType }) => {
           return;
         }
 
-        await signIn({
+        const result = await signIn({
           email,
           idToken,
+          portal,
         });
 
+        if (!result?.success) {
+          toast.error(result?.message || "Sign in Failed. Please try again.");
+          return;
+        }
+
         toast.success("Signed in successfully.");
-        router.push("/");
+        router.push(home);
       }
     } catch (error) {
       console.log(error);
@@ -103,10 +130,30 @@ const AuthForm = ({ type }: { type: FormType }) => {
       <CardHeader className="items-center text-center gap-2">
         <BrandLogo size="lg" />
         <CardTitle className="text-2xl text-foreground dark:text-card-foreground">
-          {isSignIn ? "Welcome Back" : "Create Account"}
+          {portal === "industry"
+            ? isSignIn
+              ? "Industry sign in"
+              : "Industry account"
+            : portal === "college"
+              ? isSignIn
+                ? "College sign in"
+                : "College account"
+              : isSignIn
+                ? "Welcome Back"
+                : "Create Account"}
         </CardTitle>
         <CardDescription className="text-muted-foreground dark:text-card-foreground/70">
-          {isSignIn ? "Sign in to keep practicing" : "Make an account and start a mock"}
+          {portal === "industry"
+            ? isSignIn
+              ? "Post jobs, match students, then shortlist or mentor"
+              : "Create an industry account to post listings"
+            : portal === "college"
+              ? isSignIn
+                ? "Monitor skills, internships, placements, and industry demand"
+                : "Create a college account to monitor campus outcomes"
+              : isSignIn
+                ? "Sign in to keep practicing"
+                : "Make an account and start a mock"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -169,12 +216,29 @@ const AuthForm = ({ type }: { type: FormType }) => {
         <div className="text-center mt-6 text-sm text-muted-foreground dark:text-card-foreground/60">
           {isSignIn ? "Don't have an account?" : "Already have an account?"}
           <Link
-            href={!isSignIn ? "/sign-in" : "/sign-up"}
+            href={!isSignIn ? signInHref : signUpHref}
             className="text-primary hover:text-primary/80 font-semibold ml-1 transition-colors dark:text-primary dark:hover:text-primary/80"
           >
             {!isSignIn ? "Sign In" : "Sign Up"}
           </Link>
         </div>
+        <p className="text-center mt-4 text-sm text-muted-foreground space-x-3">
+          {portal !== "student" && (
+            <Link href="/sign-in" className="text-primary font-semibold">
+              Student
+            </Link>
+          )}
+          {portal !== "industry" && (
+            <Link href="/industry/sign-in" className="text-primary font-semibold">
+              Industry
+            </Link>
+          )}
+          {portal !== "college" && (
+            <Link href="/college/sign-in" className="text-primary font-semibold">
+              College
+            </Link>
+          )}
+        </p>
       </CardContent>
     </Card>
   );

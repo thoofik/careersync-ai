@@ -7,6 +7,7 @@ import BrandLogo from '@/components/BrandLogo'
 import { cn } from '@/lib/utils'
 import { Home, Bot, Users, User, Menu, FileSearch, ClipboardList, Briefcase } from 'lucide-react'
 import { FloatingDock } from '@/components/ui/floating-dock'
+import StudentLiveSync from '@/components/student/StudentLiveSync'
 
 type AppShellProps = {
   children: ReactNode
@@ -95,6 +96,8 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
         </div>
       )}
+
+      <StudentLiveSync />
 
       {/* Content */}
       <div className="lg:col-start-2 overflow-x-hidden">

@@ -3,6 +3,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { auth } from "@/firebase/client";
 import { signOut as firebaseSignOut } from "firebase/auth";
+import { clearSessionCookie } from "@/lib/actions/auth.action";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -12,49 +13,22 @@ export function cn(...inputs: ClassValue[]) {
  * Comprehensive sign-out function that clears all login cache and authentication state
  * This should be used consistently across the application for signing out
  */
-export async function signOut(): Promise<void> {
+export async function signOut(redirectTo = "/sign-in"): Promise<void> {
   try {
-    // 1. Sign out from Firebase client auth
-    await firebaseSignOut(auth);
-    
-    // 2. Clear session cookie
-    document.cookie = 'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    
-    // 3. Clear all localStorage data
-    localStorage.clear();
-    
-    // 4. Clear all sessionStorage data  
-    sessionStorage.clear();
-    
-    // 5. Clear any cached API responses in browser cache
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map(cacheName => caches.delete(cacheName))
-      );
-    }
-    
-    // 6. Clear IndexedDB data (Firebase uses this for offline persistence)
-    if ('indexedDB' in window) {
-      try {
-        // Clear Firebase-related IndexedDB databases
-        const dbs = ['firebase-app-check-database', 'firebase-installations-database', 'firebaseLocalStorageDb'];
-        for (const dbName of dbs) {
-          const deleteReq = indexedDB.deleteDatabase(dbName);
-          deleteReq.onerror = () => console.warn(`Failed to delete IndexedDB: ${dbName}`);
-        }
-      } catch (error) {
-        console.warn('Failed to clear IndexedDB:', error);
-      }
-    }
-    
-    // 7. Force a hard redirect to clear any remaining state
-    window.location.href = '/sign-in';
+    await clearSessionCookie();
   } catch (error) {
-    console.error('Sign out error:', error);
-    // Fallback: still redirect even if cleanup fails
-    window.location.href = '/sign-in';
+    console.warn("Could not clear server session cookie:", error);
   }
+
+  try {
+    if (auth) {
+      await firebaseSignOut(auth);
+    }
+  } catch (error) {
+    console.warn("Firebase client sign out skipped:", error);
+  }
+
+  window.location.href = redirectTo;
 }
 
 const techIconBaseURL = "https://cdn.jsdelivr.net/gh/devicons/devicon/icons";

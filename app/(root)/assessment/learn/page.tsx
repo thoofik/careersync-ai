@@ -18,6 +18,7 @@ import {
   saveLearningDone,
   type LearningPathItem,
 } from "@/lib/assessment/learning-catalog";
+import { syncStudentWorkRemote } from "@/lib/actions/student.action";
 import StudentPath from "@/components/student/StudentPath";
 
 function LearningPathInner() {
@@ -54,6 +55,7 @@ function LearningPathInner() {
     setDone((prev) => {
       const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
       saveLearningDone(next);
+      void syncStudentWorkRemote({ learningDone: next });
       return next;
     });
   };

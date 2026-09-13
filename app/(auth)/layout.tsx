@@ -1,17 +1,17 @@
 import {ReactNode} from 'react'
 import "../globals.css";
 import { redirect } from 'next/navigation';
-import { isAuthenticated } from '@/lib/actions/auth.action';
+import { getCurrentUser } from '@/lib/actions/auth.action';
 import { Card, CardContent } from '@/components/ui/card';
 
 const Authlayout = async ({children}: {children: ReactNode}) => {
   // Force revalidation of authentication status
-  const isUserAuthenticated = await isAuthenticated();
-  console.log("Auth layout - user authenticated:", isUserAuthenticated);
+  const user = await getCurrentUser();
+  console.log("Auth layout - user authenticated:", !!user);
   
-  if(isUserAuthenticated) {
-    redirect('/');
-  }
+  if(user?.portal === "industry") redirect("/industry");
+  if(user?.portal === "college") redirect("/college");
+  if(user) redirect('/');
   
   return (
     <div className='min-h-screen bg-background flex items-center justify-center p-4'>

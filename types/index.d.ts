@@ -42,10 +42,13 @@ interface CreateFeedbackParams {
   feedbackId?: string;
 }
 
+type UserPortal = "student" | "industry" | "college";
+
 interface User {
   name: string;
   email: string;
   id: string;
+  portal?: UserPortal;
 }
 
 interface InterviewCardProps {
@@ -97,6 +100,7 @@ interface GetLatestInterviewsParams {
 interface SignInParams {
   email: string;
   idToken: string;
+  portal?: UserPortal;
 }
 
 interface SignUpParams {
@@ -104,6 +108,7 @@ interface SignUpParams {
   name: string;
   email: string;
   password: string;
+  portal?: UserPortal;
 }
 
 type FormType = "sign-in" | "sign-up" | "forgot-password";
